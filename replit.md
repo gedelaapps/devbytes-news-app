@@ -42,8 +42,10 @@ Preferred communication style: Simple, everyday language.
 
 ### News API Integration
 - **GNews API**: Primary news source for fetching categorized tech articles
-- **Configuration**: Environment-based API key management
+- **Configuration**: Environment-based API key management (GNEWS_API_KEY)
 - **Category Mapping**: Custom search terms mapped to predefined categories
+- **Rate Limiting**: Implemented 5-minute caching and 10-second cooldown to manage free tier limits
+- **Status**: Active with rate limiting protection for free tier usage
 
 ### AI Services
 - **Mistral AI**: Powers article summarization and chat assistant features

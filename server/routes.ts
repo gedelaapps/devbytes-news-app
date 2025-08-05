@@ -25,10 +25,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     devops: "devops OR kubernetes OR docker OR CI/CD OR infrastructure"
   };
 
+  // Cache for storing last fetch time per category to avoid rate limits
+  const lastFetchTime: Record<string, number> = {};
+  const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes cache
+
   // Fetch news from GNews API
   app.get("/api/news", async (req, res) => {
     try {
       const { category = "all", search, limit = "20", offset = "0" } = req.query;
+      const cacheKey = `${category}_${search || ''}`;
+      const now = Date.now();
       
       // Check if articles are already cached in storage
       const cachedArticles = await storage.getArticles(
@@ -38,13 +44,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
         parseInt(offset as string)
       );
       
-      // If we have cached articles and no specific search/category, return them
-      if (cachedArticles.length > 0 && !search && category === "all") {
+      // Return cached articles if we have them and they're recent enough, or if we're within rate limit cooldown
+      const lastFetch = lastFetchTime[cacheKey] || 0;
+      const shouldUseCached = cachedArticles.length > 0 && (now - lastFetch < CACHE_DURATION);
+      
+      if (shouldUseCached) {
         return res.json(cachedArticles);
+      }
+      
+      // Check if we're hitting rate limits (too many requests recently)
+      if (now - lastFetch < 10000) { // 10 second cooldown between API calls for same category
+        if (cachedArticles.length > 0) {
+          return res.json(cachedArticles);
+        }
+        return res.status(429).json({ 
+          message: "Rate limit protection active. Please try again in a moment.",
+          cached: false
+        });
       }
       
       // Fetch fresh articles from GNews API
       const searchTerm = search || categorySearchTerms[category as NewsCategory] || categorySearchTerms.all;
+      
+      // Record the fetch attempt
+      lastFetchTime[cacheKey] = now;
       
       const response = await axios.get(`${GNEWS_BASE_URL}/search`, {
         params: {
@@ -77,9 +100,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(articles);
     } catch (error: any) {
       console.error("Error fetching news:", error.message);
-      res.status(500).json({ 
-        message: "Failed to fetch news articles",
-        error: error.response?.data?.message || error.message
+      
+      // If we hit rate limits or API errors, try to return cached articles as fallback
+      const cachedArticles = await storage.getArticles(
+        req.query.category as string,
+        req.query.search as string,
+        parseInt(req.query.limit as string || "20"),
+        parseInt(req.query.offset as string || "0")
+      );
+      
+      if (cachedArticles.length > 0) {
+        return res.json(cachedArticles);
+      }
+      
+      // If all else fails, return appropriate error
+      const status = error.response?.status === 400 ? 429 : 500;
+      const message = error.response?.status === 400 
+        ? "GNews API rate limit reached. The free tier allows limited requests per day. Try other categories or wait for the limit to reset." 
+        : "Failed to fetch news articles";
+        
+      res.status(status).json({ 
+        message,
+        error: error.response?.data?.message || error.message,
+        cached: false
       });
     }
   });

@@ -39,17 +39,30 @@ export function NewsGrid({ category, searchTerm }: NewsGridProps) {
   };
 
   if (error) {
+    const errorMessage = error instanceof Error ? error.message : "An error occurred while fetching articles";
+    const isRateLimit = errorMessage.includes("Rate limit") || errorMessage.includes("429");
+    
     return (
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="text-center">
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Failed to load articles</h2>
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
+            {isRateLimit ? "Taking a short break" : "Failed to load articles"}
+          </h2>
           <p className="text-gray-600 dark:text-gray-400 mb-6">
-            {error instanceof Error ? error.message : "An error occurred while fetching articles"}
+            {isRateLimit 
+              ? "The news API needs a moment to cool down. This helps keep the service free for everyone!" 
+              : errorMessage
+            }
           </p>
           <Button onClick={() => refetch()} className="flex items-center space-x-2">
             <RefreshCw className="w-4 h-4" />
-            <span>Try Again</span>
+            <span>{isRateLimit ? "Try Again" : "Retry"}</span>
           </Button>
+          {isRateLimit && (
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-4">
+              Try switching to a different category or wait a few seconds before refreshing.
+            </p>
+          )}
         </div>
       </div>
     );
