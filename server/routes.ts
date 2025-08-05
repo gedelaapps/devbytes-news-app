@@ -289,8 +289,8 @@ function generateFallbackSummary(article: any): string {
   }
   
   if (article.description) {
-    const sentences = article.description.split('.').filter(s => s.trim().length > 20);
-    points.push(...sentences.slice(0, 2).map(s => `• ${s.trim()}`));
+    const sentences = article.description.split('.').filter((s: string) => s.trim().length > 20);
+    points.push(...sentences.slice(0, 2).map((s: string) => `• ${s.trim()}`));
   }
   
   if (points.length === 0) {

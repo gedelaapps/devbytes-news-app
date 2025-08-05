@@ -4,7 +4,7 @@ import { RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ArticleCard } from "./article-card";
-import { TLDRModal } from "./tldr-modal";
+import { TLDRModal } from "@/components/tldr-modal";
 import { newsAPI } from "@/lib/api";
 import type { Article, NewsCategory } from "@shared/schema";
 
